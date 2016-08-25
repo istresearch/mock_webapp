@@ -15,7 +15,8 @@ def index():
         'title': 'Index', 
         'message': msg, 
         'content': index_content(),
-        'cookies': json.dumps(dict(request.cookies), indent=2)
+        'cookies': json.dumps(dict(request.cookies), indent=2),
+        'ip': request.environ.get('REMOTE_ADDR')
     }
 
 @route('/login', method='get')
@@ -26,7 +27,8 @@ def login_form():
     return {
         'title': 'Login', 
         'message': 'Please Log In', 
-        'cookies': json.dumps(dict(request.cookies), indent=2)
+        'cookies': json.dumps(dict(request.cookies), indent=2),
+        'ip': request.environ.get('REMOTE_ADDR')
     }
 
 @route('/login', method='post')
@@ -48,7 +50,8 @@ def page(id):
         'title': 'Page {id}'.format(id=id), 
         'message':  msg, 
         'content': page_content(id),
-        'cookies': json.dumps(dict(request.cookies), indent=2)
+        'cookies': json.dumps(dict(request.cookies), indent=2),
+        'ip': request.environ.get('REMOTE_ADDR')
     }
 
 def index_content():

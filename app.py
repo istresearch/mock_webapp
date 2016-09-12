@@ -1,8 +1,10 @@
 import json
 import random
+import redis
+import time
 import uuid
 
-from settings import APP_SECRET, AUTH_USERNAME, AUTH_PASSWORD
+from settings import APP_SECRET, AUTH_USERNAME, AUTH_PASSWORD, REDIS, THROTTLE
 
 from bottle import route, request, response, run, redirect, view
 
@@ -54,12 +56,37 @@ def page(id):
         'ip': request.environ.get('REMOTE_ADDR')
     }
 
+@route('/throttled')
+def throttled():
+    usage_data = get_usage_data()
+    response.set_header('X-App-Usage', json.dumps(usage_data))
+    response.content_type = 'application/json'
+    return json.dumps({'status': 'ok', 'usage_data': usage_data})
+
+def get_usage_data():
+    _redis = redis.Redis(**REDIS)
+    now = int(time.time() * 1000)
+    cutoff = now - THROTTLE['window']
+    _redis.zremrangebyscore(THROTTLE['key'], 0, cutoff)
+    reqs = _redis.zcard(THROTTLE['key'])
+    if reqs >= THROTTLE['limit']:
+        raise Exception('Limit Exceeded')
+    _redis.zadd(THROTTLE['key'], now, now)
+    usage = int((reqs / THROTTLE['limit']) * 100)
+    usage_data = {
+        'foo': 0,
+        'bar': 0,
+        'baz': usage,
+    }
+    return usage_data
+
 def index_content():
     links = []
     ids = random.sample(range(1, 1000), 20)
     for id in ids:
         links.append("<p><a href='/page/{id}'>{id}</a></li></p>".format(id=id))
     return "\n".join(links)
+
 
 def page_content(id):
     return "This is page {id}".format(id=id)

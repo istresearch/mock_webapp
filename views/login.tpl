@@ -14,5 +14,6 @@
 	</div>
 	<p><strong>Cookies:</strong></p>
 	<pre>{{!cookies}}</pre>
+	<p><strong>IP Address:</strong> {{ip}}</p>
 </body>
 </html>

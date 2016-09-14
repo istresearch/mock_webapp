@@ -1,8 +1,10 @@
 import json
 import random
+import redis
+import time
 import uuid
 
-from settings import APP_SECRET, AUTH_USERNAME, AUTH_PASSWORD
+from settings import APP_SECRET, AUTH_USERNAME, AUTH_PASSWORD, REDIS, THROTTLE
 
 from bottle import route, request, response, run, redirect, view
 
@@ -15,7 +17,8 @@ def index():
         'title': 'Index', 
         'message': msg, 
         'content': index_content(),
-        'cookies': json.dumps(dict(request.cookies), indent=2)
+        'cookies': json.dumps(dict(request.cookies), indent=2),
+        'ip': request.environ.get('REMOTE_ADDR')
     }
 
 @route('/login', method='get')
@@ -26,7 +29,8 @@ def login_form():
     return {
         'title': 'Login', 
         'message': 'Please Log In', 
-        'cookies': json.dumps(dict(request.cookies), indent=2)
+        'cookies': json.dumps(dict(request.cookies), indent=2),
+        'ip': request.environ.get('REMOTE_ADDR')
     }
 
 @route('/login', method='post')
@@ -48,8 +52,37 @@ def page(id):
         'title': 'Page {id}'.format(id=id), 
         'message':  msg, 
         'content': page_content(id),
-        'cookies': json.dumps(dict(request.cookies), indent=2)
+        'cookies': json.dumps(dict(request.cookies), indent=2),
+        'ip': request.environ.get('REMOTE_ADDR')
     }
+
+@route('/throttled')
+def throttled():
+    try:
+        usage_data = get_usage_data()
+        response.set_header('X-App-Usage', json.dumps(usage_data))
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'ok', 'usage_data': usage_data})
+    except:
+        response.content_type = 'application/json'
+        return json.dumps({ 'error': { 'code': 32, 'message': 'rate limited' } })
+
+def get_usage_data():
+    _redis = redis.Redis(**REDIS)
+    now = int(time.time() * 1000)
+    cutoff = now - THROTTLE['window']
+    _redis.zremrangebyscore(THROTTLE['key'], 0, cutoff)
+    reqs = _redis.zcard(THROTTLE['key'])
+    if reqs >= THROTTLE['limit']:
+        raise Exception('limit')
+    _redis.zadd(THROTTLE['key'], str(now), now)
+    usage = int((reqs / float(THROTTLE['limit'])) * 100)
+    usage_data = {
+        'foo': 0,
+        'bar': 0,
+        'baz': usage,
+    }
+    return usage_data
 
 def index_content():
     links = []

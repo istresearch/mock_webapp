@@ -71,8 +71,8 @@ def get_usage_data():
     reqs = _redis.zcard(THROTTLE['key'])
     if reqs >= THROTTLE['limit']:
         raise Exception('Limit Exceeded')
-    _redis.zadd(THROTTLE['key'], now, now)
-    usage = int((reqs / THROTTLE['limit']) * 100)
+    _redis.zadd(THROTTLE['key'], str(now), now)
+    usage = int((reqs / float(THROTTLE['limit'])) * 100)
     usage_data = {
         'foo': 0,
         'bar': 0,

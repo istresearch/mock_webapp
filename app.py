@@ -58,10 +58,14 @@ def page(id):
 
 @route('/throttled')
 def throttled():
-    usage_data = get_usage_data()
-    response.set_header('X-App-Usage', json.dumps(usage_data))
-    response.content_type = 'application/json'
-    return json.dumps({'status': 'ok', 'usage_data': usage_data})
+    try:
+        usage_data = get_usage_data()
+        response.set_header('X-App-Usage', json.dumps(usage_data))
+        response.content_type = 'application/json'
+        return json.dumps({'status': 'ok', 'usage_data': usage_data})
+    except:
+        response.content_type = 'application/json'
+        return json.dumps({ 'error': { 'code': 32, 'message': 'rate limited' } })
 
 def get_usage_data():
     _redis = redis.Redis(**REDIS)
@@ -70,7 +74,7 @@ def get_usage_data():
     _redis.zremrangebyscore(THROTTLE['key'], 0, cutoff)
     reqs = _redis.zcard(THROTTLE['key'])
     if reqs >= THROTTLE['limit']:
-        raise Exception('Limit Exceeded')
+        raise Exception('limit')
     _redis.zadd(THROTTLE['key'], str(now), now)
     usage = int((reqs / float(THROTTLE['limit'])) * 100)
     usage_data = {
@@ -86,7 +90,6 @@ def index_content():
     for id in ids:
         links.append("<p><a href='/page/{id}'>{id}</a></li></p>".format(id=id))
     return "\n".join(links)
-
 
 def page_content(id):
     return "This is page {id}".format(id=id)
